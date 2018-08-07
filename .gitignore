@@ -1,0 +1,12 @@
+
+# general temp things
+*.swp
+
+
+# installer things
+logs
+installed-*
+
+# downloaded and extracted source code things
+*.tar.gz
+cde-2.2.4a
