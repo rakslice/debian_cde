@@ -6,7 +6,9 @@
 # installer things
 logs
 installed-*
+*.orig
 
 # downloaded and extracted source code things
 *.tar.gz
 cde-2.2.4a
+launchy-2.5

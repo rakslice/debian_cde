@@ -1,0 +1,199 @@
+#!/bin/bash
+set -e
+set -x
+set -o pipefail
+
+
+patches_dir=~/src/patches
+
+
+function verify_sha() {
+
+	# Verify that the given file matches the given expected hash.
+        # Guesses the hash algorithm from the length of the expected hash.
+
+	if [ "$#" -ne 2 ]; then 
+		die "bad params to verify_sha: $*"
+	fi
+
+	archive="$1"
+	sha_expected="$2"
+
+	sha_expected_len=$(echo -n "$sha_expected" | wc -c | awk '{print $1}')
+
+	case $sha_expected_len in
+	40)
+		sha_args="-a 1"
+		;;
+	64)
+		sha_args="-a 256"
+		;;
+	128)
+		sha_args="-a 512"
+		;;
+	32)
+		# md5
+		sha_actual=$(openssl md5 "$archive" | awk '{print $2}')
+		[ "$sha_actual" == "$sha_expected" ]
+		return
+		;;
+	*)
+		echo "don't know what sha algorithm uses a $sha_expected_len digit key, using sha1"
+		sha_args="-a 1"
+		;;
+	esac
+
+	sha_actual=$(shasum $sha_args "$archive" | awk '{print $1}')
+	[ "$sha_actual" == "$sha_expected" ]
+}
+
+
+function wtcmmi() {
+
+	# a function to build things
+	# wget - tar - configure - make - make install
+
+	if [ "$#" -lt 2 ]; then 
+		die "bad params to wtcmmi: $*"
+	fi
+
+	set -x
+
+	url="$1"
+	sha_expected="$2"
+	shift 2
+
+	if [ "$archive_filename" == "" ]; then
+		archive="$(basename "$url")"
+		wget_options=""
+	else
+		archive="$archive_filename"
+		wget_options='-O '"$archive_filename"
+	fi
+
+	if [ "$use_dirname" == "" ]; then
+		dirname="${archive%.tar.gz}"
+		dirname="${dirname%.tar.bz2}"
+		dirname="${dirname%.tar.xz}"
+	else
+		dirname="$use_dirname"
+	fi
+	build_tag="installed-${dirname}"
+
+	make_clean=no
+
+	if [ "$tag_must_contain" == "" ]; then
+		if [ -f "$build_tag" ]; then
+			return
+		fi
+	else
+		if fgrep -- "$tag_must_contain" "$build_tag"; then
+			return
+		else
+			make_clean=yes
+		fi
+	fi
+
+	# 1) wget
+
+	if [ ! -f "$archive" ]; then
+		wget "$url" $wget_options
+	fi
+	verify_sha "$archive" "$sha_expected"
+
+	# 2) tar
+
+	tar xf "$archive"
+
+	pushd "$dirname"
+
+	# 3) configure
+
+	# apply a patch if there is one to apply and patch_before_configure is specified
+	if [ "$patch_before_configure" != "" ] && [ -f "${patches_dir}/${dirname}.patch" ]; then
+		patch -p1 -i "${patches_dir}/${dirname}.patch" 2>&1 | tee ~/src/logs/${dirname}.patch.out
+	fi
+
+	if [ "$pre_configure_command" != "" ]; then
+		$pre_configure_command 2>&1 | tee ~/src/logs/${dirname}.preconfigure.out
+	fi
+
+	if [ "$configure_name" == "" ]; then
+		configure_name=configure
+	fi
+
+	if [ "$(echo "$configure_name" | cut -c1)" != "/" ]; then
+		configure_name="./$configure_name"
+	fi
+
+	if [ "$noconfig" == "" ]; then	
+		${configure_name} "$@" 2>&1 | tee ~/src/logs/${dirname}.configure.out
+		if [ -f config.log ]; then
+			cp config.log ~/src/logs/${dirname}.config.log
+		fi
+	fi
+
+	# 4) make
+
+	# apply a patch if there is one to apply, post-config by default so it can change makefiles
+	if [ "$patch_before_configure" == "" ] && [ -f "${patches_dir}/${dirname}.patch" ]; then
+		# for easy patch creation make a .orig copy of the directory if we don't already have one
+		if [ ! -d ../${dirname}.orig ]; then
+			cp -R ../${dirname} ../${dirname}.orig
+		fi
+
+		patch -p1 -i "${patches_dir}/${dirname}.patch" 2>&1 | tee ~/src/logs/${dirname}.patch.out
+	fi
+
+	if [ "$make_subdir" != "" ]; then
+		cd "$make_subdir"
+	fi
+
+	if [ "$make_clean" == "yes" ]; then
+		make clean 2>&1 | tee ~/src/logs/${dirname}.make_clean.out
+	fi
+
+	if [ "$make_command" == "" ]; then
+		make_command=make
+	fi
+
+	${make_command} ${make_params} 2>&1 | tee ~/src/logs/${dirname}.make.out
+
+	# 5) install
+
+	if [ "$alt_install_command" != "" ]; then
+		sudo ${alt_install_command} 2>&1 | tee ~/src/logs/${dirname}.make_install.out
+	else
+		sudo ${make_command} install ${make_install_params} 2>&1 | tee ~/src/logs/${dirname}.make_install.out
+	fi
+
+	popd	
+
+	# 6) verify binaries
+	prefix=/usr/local
+	if [ "$verify_binaries" != "" ]; then
+		for f in $verify_binaries; do
+			[ -f $prefix/bin/$f ]
+			if ldd $prefix/bin/$f | grep '(file not found)'; then
+				false
+			fi
+		done
+	fi
+
+	# write an installation tag, indicating that it was successfully installed with the given settings.
+	echo "installed $url $sha_expected $*" > "$build_tag"
+}
+
+mkdir -p ~/src/logs
+
+## Launchy 2.5
+# requires: qt (4.x preferably), Boost
+
+sudo apt-get install libqt4-dev libboost-dev
+
+QT_DIR=/usr
+
+make_params=-j2 \
+configure_name="${QT_DIR}/bin/qmake-qt4 -r Launchy.pro" \
+wtcmmi https://www.launchy.net/downloads/src/launchy-2.5.tar.gz 7a6317168fe7aa219c138fbbc0f84539be9bce9e "LIBS+=-lX11"
+
