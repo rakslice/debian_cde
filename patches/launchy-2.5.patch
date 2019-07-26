@@ -55,21 +55,6 @@ diff '--exclude=.deps' '--exclude=*.log' -ur launchy-2.5.orig/plugins/calcy/calc
      target.path = $$PREFIX/lib/launchy/plugins/
      icon.path = $$PREFIX/lib/launchy/plugins/icons/
      icon.files = calcy.png
-diff '--exclude=.deps' '--exclude=*.log' -ur launchy-2.5.orig/plugins/calcy/precompiled.h launchy-2.5/plugins/calcy/precompiled.h
---- launchy-2.5.orig/plugins/calcy/precompiled.h	2018-07-07 21:49:52.244109000 -0700
-+++ launchy-2.5/plugins/calcy/precompiled.h	2018-07-08 00:13:28.691272000 -0700
-@@ -36,8 +36,8 @@
- using namespace boost;
- 
- #define BOOST_SPIRIT_USE_OLD_NAMESPACE
--#include <boost/spirit/include/classic_core.hpp>
--#include <boost/spirit/include/classic_attribute.hpp>
--#include <boost/spirit/include/phoenix1_functions.hpp>
-+#include <boost/spirit/core.hpp> 
-+#include <boost/spirit/attribute.hpp>
-+#include <boost/spirit/phoenix/functions.hpp>
- 
- #endif // PRECOMPILED_H
 diff '--exclude=.deps' '--exclude=*.log' -ur launchy-2.5.orig/plugins/gcalc/gcalc.pro launchy-2.5/plugins/gcalc/gcalc.pro
 --- launchy-2.5.orig/plugins/gcalc/gcalc.pro	2018-07-07 21:49:52.094021000 -0700
 +++ launchy-2.5/plugins/gcalc/gcalc.pro	2018-07-08 00:22:18.765296000 -0700

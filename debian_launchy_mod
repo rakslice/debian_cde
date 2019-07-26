@@ -195,5 +195,7 @@ QT_DIR=/usr
 
 make_params=-j2 \
 configure_name="${QT_DIR}/bin/qmake-qt4 -r Launchy.pro" \
-wtcmmi https://www.launchy.net/downloads/src/launchy-2.5.tar.gz 7a6317168fe7aa219c138fbbc0f84539be9bce9e "LIBS+=-lX11"
+archive_filename=leonid-shevtsov-launchy-b4b3497.tar.gz \
+wtcmmi https://api.github.com/repos/leonid-shevtsov/launchy/tarball/b4b3497 9c1b27913c033eed747679dfdae8d758c582c259 "LIBS+=-lX11"
 
+#wtcmmi https://www.launchy.net/downloads/src/launchy-2.5.tar.gz 7a6317168fe7aa219c138fbbc0f84539be9bce9e "LIBS+=-lX11"
